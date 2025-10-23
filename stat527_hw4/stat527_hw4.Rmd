@@ -1,0 +1,57 @@
+---
+title: "stat527_hw4"
+output: html_notebook
+---
+
+Q1
+```{r}
+library(faraway)
+data(cheddar)
+
+summary(cheddar)
+
+mod <- lm(taste ~ Acetic + H2S + Lactic, data=cheddar)
+vif(mod)
+```
+
+Q2
+```{r}
+f <- function(x) (sin(2*pi*x^3))^3    
+x <- seq(0, 1, by = 0.01)                
+n <- length(x)
+sigma <- 0.1
+
+y <- f(x) + sigma * rnorm(n)
+
+degrees <- 4:12
+
+sse_train <- numeric(length(degrees))
+sse_test  <- numeric(length(degrees))
+
+y_new <- f(x) + sigma * rnorm(n)
+
+for (i in seq_along(degrees)) {
+  d <- degrees[i]
+  fit <- lm(y ~ poly(x, degree = d, raw = TRUE))
+  y_hat <- fitted(fit)
+  sse_train[i] <- sum((y - y_hat)^2)
+  y_hat_on_x <- predict(fit, newdata = data.frame(x = x))
+  sse_test[i] <- sum((y_new - y_hat_on_x)^2)
+}
+
+op <- par(mfrow = c(1, 2), mar = c(4.2, 4.2, 2, 1))
+
+plot(degrees, sse_train, type = "b", pch = 19,
+     xlab = "Polynomial degree (d)",
+     ylab = "Training SSE  ||Y - Ŷ^(d)||^2",
+     main = "Training error vs degree")
+
+plot(degrees, sse_test, type = "b", pch = 19,
+     xlab = "Polynomial degree (d)",
+     ylab = "Test SSE  ||Y_new - Ŷ^(d)||^2",
+     main = "Test error vs degree")
+
+par(op)
+
+data.frame(degree = degrees, sse_train, sse_test)
+```
