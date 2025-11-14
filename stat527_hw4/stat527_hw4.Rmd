@@ -41,12 +41,12 @@ for (i in seq_along(degrees)) {
 
 op <- par(mfrow = c(1, 2), mar = c(4.2, 4.2, 2, 1))
 
-plot(degrees, sse_train, type = "b", pch = 19,
+plot(degrees, sse_train, type = "b", #pch = 19,
      xlab = "Polynomial degree (d)",
      ylab = "Training SSE  ||Y - Ŷ^(d)||^2",
      main = "Training error vs degree")
 
-plot(degrees, sse_test, type = "b", pch = 19,
+plot(degrees, sse_test, type = "b", #pch = 19,
      xlab = "Polynomial degree (d)",
      ylab = "Test SSE  ||Y_new - Ŷ^(d)||^2",
      main = "Test error vs degree")
