@@ -1,0 +1,9 @@
+     taste           Acetic           H2S             Lactic     
+ Min.   : 0.70   Min.   :4.477   Min.   : 2.996   Min.   :0.860  
+ 1st Qu.:13.55   1st Qu.:5.237   1st Qu.: 3.978   1st Qu.:1.250  
+ Median :20.95   Median :5.425   Median : 5.329   Median :1.450  
+ Mean   :24.53   Mean   :5.498   Mean   : 5.942   Mean   :1.442  
+ 3rd Qu.:36.70   3rd Qu.:5.883   3rd Qu.: 7.575   3rd Qu.:1.667  
+ Max.   :57.20   Max.   :6.458   Max.   :10.199   Max.   :2.010  
+  Acetic      H2S   Lactic 
+1.831589 1.992200 1.937912 
