@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@import 'katex/dist/katex.min.css';
+
+:root {
+  --background: #fdfdfd;
+  --foreground: #1a1a1a;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
