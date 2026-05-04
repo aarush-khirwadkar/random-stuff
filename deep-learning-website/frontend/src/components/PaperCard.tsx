@@ -53,15 +53,25 @@ const PaperCard: React.FC<PaperProps> = ({ paper }) => {
   }, [paper.id]);
 
   const toggleFavorite = () => {
-    const favorites = JSON.parse(localStorage.getItem('dl_digest_favorites') || '[]');
+    const favorites = JSON.parse(localStorage.getItem('dl_digest_favorites_full') || '[]');
     let nextFavorites;
-    if (favorites.includes(paper.id)) {
-      nextFavorites = favorites.filter((id: string) => id !== paper.id);
+    
+    const isAlreadyFavorited = favorites.some((p: any) => p.id === paper.id);
+    
+    if (isAlreadyFavorited) {
+      nextFavorites = favorites.filter((p: any) => p.id !== paper.id);
     } else {
-      nextFavorites = [...favorites, paper.id];
+      nextFavorites = [...favorites, paper];
     }
-    localStorage.setItem('dl_digest_favorites', JSON.stringify(nextFavorites));
-    setIsFavorited(!isFavorited);
+    
+    localStorage.setItem('dl_digest_favorites_full', JSON.stringify(nextFavorites));
+    
+    // Keep the old ID-only list for backward compatibility if needed, 
+    // but the full one is our new source of truth
+    const favoriteIds = nextFavorites.map((p: any) => p.id);
+    localStorage.setItem('dl_digest_favorites', JSON.stringify(favoriteIds));
+    
+    setIsFavorited(!isAlreadyFavorited);
   };
 
   const summaryPreview = paper.summary.slice(0, 200).trim() + "...";

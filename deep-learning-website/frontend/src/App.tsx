@@ -24,7 +24,7 @@ const App: React.FC = () => {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
-  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [favoritePapers, setFavoritePapers] = useState<Paper[]>([]);
 
   useEffect(() => {
     fetchDigest();
@@ -32,8 +32,8 @@ const App: React.FC = () => {
   }, []);
 
   const updateFavoriteIds = () => {
-    const favorites = JSON.parse(localStorage.getItem('dl_digest_favorites') || '[]');
-    setFavoriteIds(favorites);
+    const favoritesFull = JSON.parse(localStorage.getItem('dl_digest_favorites_full') || '[]');
+    setFavoritePapers(favoritesFull);
   };
 
   const fetchDigest = async () => {
@@ -48,6 +48,11 @@ const App: React.FC = () => {
       // Calculate available tags from the data itself
       const tags = new Set<string>();
       data.papers.forEach((p: Paper) => p.tags.forEach(t => tags.add(t)));
+      
+      // Also add tags from favorite papers to ensure they are available in the filter
+      const favoritesFull = JSON.parse(localStorage.getItem('dl_digest_favorites_full') || '[]');
+      favoritesFull.forEach((p: Paper) => p.tags.forEach(t => tags.add(t)));
+      
       setAvailableTags(Array.from(tags).sort());
 
     } catch (err) {
@@ -66,13 +71,10 @@ const App: React.FC = () => {
   };
 
   // Logic moved from backend to frontend for static deployment
-  const filteredPapers = digest?.papers?.filter(paper => {
-    // 1. Filter by favorites if enabled
-    if (showOnlyFavorites && !favoriteIds.includes(paper.id)) {
-      return false;
-    }
-    
-    // 2. Filter by tags (Intersection/ALL)
+  const sourcePapers = showOnlyFavorites ? favoritePapers : (digest?.papers || []);
+  
+  const filteredPapers = sourcePapers.filter(paper => {
+    // Filter by tags (Intersection/ALL)
     if (selectedTags.length > 0) {
       return selectedTags.every(tag => paper.tags.includes(tag));
     }
