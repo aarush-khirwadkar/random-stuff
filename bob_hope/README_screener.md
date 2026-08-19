@@ -69,8 +69,10 @@ blocks within the per-minute window, and stops calling the API entirely once
 
 `screener_state.json` (auto-created, gitignored) stores:
 
-- per-ticker+signal+day dedupe (each technical signal fires at most once per
-  day even though checks run intraday),
+- last-fired timestamps per ticker+signal. Technical signals **re-alert every
+  poll while their condition stays true**; raise
+  `TECHNICAL_SIGNAL_COOLDOWN_MINUTES` in `config.py` to throttle (0 = every
+  poll, 60 = hourly, 1440 = once per rolling 24h),
 - per-ticker "currently in value zone" booleans (zone alerts fire only on the
   outside→inside transition, across polls and across days),
 - today's credit usage.
@@ -92,8 +94,9 @@ Delete the file to reset all alert state.
   `CBOE_REFRESH_MINUTES` (default 60). Only tickers with a value zone are
   fetched. The 15-minute delay is immaterial here — the target strike drifts
   slowly. Caveat: this is a public data feed, not a documented API; if it ever
-  fails, the script logs a warning, sends an ntfy warning push (once per
-  symbol per day), reuses the last good strike, and otherwise falls back to a
+  fails, the script logs a warning, sends an ntfy warning push (at most once
+  per symbol per 24h, `CBOE_FAIL_COOLDOWN_MINUTES`), reuses the last good
+  strike, and otherwise falls back to a
   Black-Scholes estimate using 20-day realized volatility as an IV proxy
   (`approx_csp_strike` in `screener.py`).
 - `SPCX` and `CRWV` may not resolve on Twelve Data (SPCX in particular is not

@@ -15,7 +15,7 @@ The Twelve Data API key and the ntfy topic are read from the environment
 # ---------------------------------------------------------------------------
 WATCHLIST = [
     "AMZN", "MSFT", "GOOG", "AAPL", "NVDA", "TSLA",
-    "SPCX", "HOOD", "PLTR", "SOXL", "CRWV", "SMCI",
+    "SPCX", "HOOD", "PLTR", "SOXL", "CRWV", "SMCI", "INTC", "META"
 ]
 
 # Market proxy used for the red-day / green-day comparison
@@ -59,6 +59,18 @@ CSP_RSI_RANGE = (30, 50)     # RSI must be inside [lo, hi] for the CSP signal
 SMA200_TOLERANCE = 0.02      # "within 2% of the 200-day SMA" for buy/ATM-put
 CC_PERCENT_B_MIN = 0.80      # %B threshold for the covered-call signal
 CC_RSI_MIN = 60              # RSI threshold for the covered-call signal
+
+# How long to wait before re-sending a technical signal (CSP / buy-or-ATM-put /
+# covered call) that is still true. Applies per ticker + signal.
+#     0 -> re-alert on every poll while the condition holds (every
+#          POLL_INTERVAL_MINUTES, so ~26 pushes/day per continuously-true signal)
+#    60 -> at most hourly
+#  1440 -> at most once per rolling 24h (the original once-a-day behavior)
+TECHNICAL_SIGNAL_COOLDOWN_MINUTES = 0
+
+# Cooldown for the "Cboe fetch failed" warning. Kept long on purpose: a data
+# source outage is worth knowing about once, not every 15 minutes.
+CBOE_FAIL_COOLDOWN_MINUTES = 1440
 
 # ---------------------------------------------------------------------------
 # ~30-delta / ~30-day put strike (used only for the value-zone check).

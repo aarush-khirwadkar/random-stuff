@@ -113,6 +113,10 @@ def load_state() -> dict:
             state.update(json.loads(path.read_text()))
         except (json.JSONDecodeError, OSError) as exc:
             log.warning("Could not read state file (%s); starting fresh", exc)
+    # Alert history used to be per-day date strings and is now epoch timestamps;
+    # drop legacy entries (worst case: one duplicate alert after the upgrade).
+    state["signals"] = {k: v for k, v in state["signals"].items()
+                        if isinstance(v, (int, float))}
     return state
 
 
@@ -123,9 +127,26 @@ def save_state(state: dict) -> None:
     tmp.replace(path)
 
 
-def prune_old_signals(state: dict, today: str) -> None:
-    """Signal dedupe entries are per-day; drop stale ones to keep the file small."""
-    state["signals"] = {k: v for k, v in state["signals"].items() if v == today}
+def prune_signal_history(state: dict) -> None:
+    """Drop alert timestamps older than any cooldown could care about."""
+    cutoff = time.time() - max(7 * 86400,
+                               config.TECHNICAL_SIGNAL_COOLDOWN_MINUTES * 60,
+                               config.CBOE_FAIL_COOLDOWN_MINUTES * 60)
+    state["signals"] = {k: v for k, v in state["signals"].items() if v >= cutoff}
+
+
+def should_fire(state: dict, key: str, cooldown_minutes: float) -> bool:
+    """True if `key` has not alerted within cooldown_minutes (0 = always fire).
+
+    Records the fire time as a side effect, so only call it at the moment of
+    actually sending — a True return consumes the slot.
+    """
+    now = time.time()
+    last = state["signals"].get(key)
+    if last is not None and now - last < cooldown_minutes * 60:
+        return False
+    state["signals"][key] = now
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -386,15 +407,15 @@ def fetch_cboe_csp_put(symbol: str) -> dict | None:
 
 
 def notify_cboe_failure(symbol: str, state: dict, detail: str) -> None:
-    """Push a warning about a failed Cboe refresh, at most once per symbol per
-    day (dedupe rides on state['signals'], so prune_old_signals cleans it up)."""
-    today = et_date_str()
-    if state["signals"].get(f"{symbol}:CBOE_FAIL") == today:
+    """Push a warning about a failed Cboe refresh, rate-limited per symbol by
+    CBOE_FAIL_COOLDOWN_MINUTES (deliberately much longer than the technical
+    signal cooldown — an outage is worth knowing about once, not every poll)."""
+    if not should_fire(state, f"{symbol}:CBOE_FAIL", config.CBOE_FAIL_COOLDOWN_MINUTES):
         return
-    state["signals"][f"{symbol}:CBOE_FAIL"] = today
     notify(f"Screener warning: Cboe fetch failed ({symbol})",
            f"Could not refresh the Cboe options chain for {symbol}; {detail}. "
-           f"Will keep retrying each poll (this warning fires once per day).",
+           f"Will keep retrying each poll (this warning repeats at most every "
+           f"{config.CBOE_FAIL_COOLDOWN_MINUTES // 60}h).",
            "warning")
 
 
@@ -447,8 +468,10 @@ def notify(title: str, message: str, tags: str) -> None:
 # Signal evaluation (NOTIFICATION ONLY — no trading of any kind)
 # ---------------------------------------------------------------------------
 def evaluate_technical(sym: str, quote: dict, closes: pd.Series | None,
-                       spy_pct: float, state: dict, today: str) -> None:
-    """CSP / buy-or-ATM-put / covered-call signals. Deduped per ticker+signal+day."""
+                       spy_pct: float, state: dict) -> None:
+    """CSP / buy-or-ATM-put / covered-call signals. Each one re-alerts while its
+    condition holds, rate-limited per ticker+signal by
+    TECHNICAL_SIGNAL_COOLDOWN_MINUTES (0 = every poll)."""
     if closes is None or len(closes) < 2:
         return
     live, prev_close = quote["price"], quote["prev_close"]
@@ -474,10 +497,10 @@ def evaluate_technical(sym: str, quote: dict, closes: pd.Series | None,
           and rsi >= config.CC_RSI_MIN)
 
     day_ctx = f"{sym} {stock_pct:+.2f}%, SPY {spy_pct:+.2f}%"
+    cooldown = config.TECHNICAL_SIGNAL_COOLDOWN_MINUTES
 
-    if buy_or_put and state["signals"].get(f"{sym}:BUY_OR_PUT") != today:
-        state["signals"][f"{sym}:BUY_OR_PUT"] = today
-        state["signals"][f"{sym}:CSP"] = today  # implied; don't also fire CSP
+    if buy_or_put and should_fire(state, f"{sym}:BUY_OR_PUT", cooldown):
+        state["signals"][f"{sym}:CSP"] = time.time()  # implied; don't also fire CSP
         notify(
             f"Signal: {sym} BUY or ATM PUT",
             f"{sym} @ {live:.2f} — CSP conditions met AND within "
@@ -485,8 +508,7 @@ def evaluate_technical(sym: str, quote: dict, closes: pd.Series | None,
             f"Red day ({day_ctx}), price <= EMA50 ({ind['ema50']:.2f}), RSI {rsi:.1f}.",
             "moneybag",
         )
-    elif csp and state["signals"].get(f"{sym}:CSP") != today:
-        state["signals"][f"{sym}:CSP"] = today
+    elif csp and should_fire(state, f"{sym}:CSP", cooldown):
         notify(
             f"Signal: {sym} CSP",
             f"{sym} @ {live:.2f} — sell-CSP setup. Red day ({day_ctx}), "
@@ -495,8 +517,7 @@ def evaluate_technical(sym: str, quote: dict, closes: pd.Series | None,
             "chart_with_downwards_trend",
         )
 
-    if cc and state["signals"].get(f"{sym}:CC") != today:
-        state["signals"][f"{sym}:CC"] = today
+    if cc and should_fire(state, f"{sym}:CC", cooldown):
         notify(
             f"Signal: {sym} Covered Call",
             f"{sym} @ {live:.2f} — covered-call setup. Green day ({day_ctx}), "
@@ -557,8 +578,7 @@ def refresh_daily_cache(daily_cache: dict, credits: CreditTracker) -> None:
 
 def run_poll_cycle(state: dict, daily_cache: dict, credits: CreditTracker) -> str:
     """One full evaluation pass. Returns 'ok', 'closed', or 'skipped'."""
-    today = et_date_str()
-    prune_old_signals(state, today)
+    prune_signal_history(state)
     refresh_daily_cache(daily_cache, credits)
 
     symbols = list(dict.fromkeys(config.WATCHLIST + [config.MARKET_PROXY]))
@@ -581,7 +601,7 @@ def run_poll_cycle(state: dict, daily_cache: dict, credits: CreditTracker) -> st
         cached = daily_cache.get(sym)
         closes = cached["closes"] if cached else None
         try:
-            evaluate_technical(sym, quote, closes, spy_pct, state, today)
+            evaluate_technical(sym, quote, closes, spy_pct, state)
             evaluate_value_zone(sym, quote, closes, state)
         except Exception:
             log.exception("Evaluation failed for %s", sym)
