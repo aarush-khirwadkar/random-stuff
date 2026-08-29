@@ -41,7 +41,7 @@ VALUE_ZONES = {
 # ---------------------------------------------------------------------------
 # Polling
 # ---------------------------------------------------------------------------
-POLL_INTERVAL_MINUTES = 15   # lower this if you move to a paid Twelve Data tier
+POLL_INTERVAL_MINUTES = 60   # lower this if you move to a paid Twelve Data tier
 
 # ---------------------------------------------------------------------------
 # Indicator parameters
@@ -60,16 +60,12 @@ SMA200_TOLERANCE = 0.02      # "within 2% of the 200-day SMA" for buy/ATM-put
 CC_PERCENT_B_MIN = 0.80      # %B threshold for the covered-call signal
 CC_RSI_MIN = 60              # RSI threshold for the covered-call signal
 
-# How long to wait before re-sending a technical signal (CSP / buy-or-ATM-put /
-# covered call) that is still true. Applies per ticker + signal.
-#     0 -> re-alert on every poll while the condition holds (every
-#          POLL_INTERVAL_MINUTES, so ~26 pushes/day per continuously-true signal)
-#    60 -> at most hourly
-#  1440 -> at most once per rolling 24h (the original once-a-day behavior)
-TECHNICAL_SIGNAL_COOLDOWN_MINUTES = 0
+# Technical signals are EDGE-TRIGGERED: one push when a setup becomes true and
+# one when it stops being true, nothing while it simply stays true. There is no
+# repeat/cooldown knob for them by design.
 
 # Cooldown for the "Cboe fetch failed" warning. Kept long on purpose: a data
-# source outage is worth knowing about once, not every 15 minutes.
+# source outage is worth knowing about once, not every poll.
 CBOE_FAIL_COOLDOWN_MINUTES = 1440
 
 # ---------------------------------------------------------------------------

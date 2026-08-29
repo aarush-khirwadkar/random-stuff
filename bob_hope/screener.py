@@ -107,16 +107,22 @@ def seconds_until_next_open(dt: datetime) -> float:
 # ---------------------------------------------------------------------------
 def load_state() -> dict:
     path = SCRIPT_DIR / config.STATE_FILE
-    state = {"signals": {}, "value_zone_in_range": {}, "credits": {"date": "", "used": 0}}
+    state = {"signal_active": {}, "value_zone_in_range": {},
+             "alert_cooldowns": {}, "credits": {"date": "", "used": 0}}
     if path.exists():
         try:
             state.update(json.loads(path.read_text()))
         except (json.JSONDecodeError, OSError) as exc:
             log.warning("Could not read state file (%s); starting fresh", exc)
-    # Alert history used to be per-day date strings and is now epoch timestamps;
-    # drop legacy entries (worst case: one duplicate alert after the upgrade).
-    state["signals"] = {k: v for k, v in state["signals"].items()
-                        if isinstance(v, (int, float))}
+    # Legacy layout: technical-signal history lived under "signals" (per-day
+    # date strings, later timestamps). Those signals are edge-triggered now, so
+    # only the Cboe-warning cooldowns are still meaningful; carry them over and
+    # drop the rest. Worst case after upgrading: one extra alert per active
+    # setup on the first poll, because nothing is known to be "on" yet.
+    legacy = state.pop("signals", {})
+    state["alert_cooldowns"].update(
+        {k: v for k, v in legacy.items()
+         if k.endswith(":CBOE_FAIL") and isinstance(v, (int, float))})
     return state
 
 
@@ -127,12 +133,11 @@ def save_state(state: dict) -> None:
     tmp.replace(path)
 
 
-def prune_signal_history(state: dict) -> None:
-    """Drop alert timestamps older than any cooldown could care about."""
-    cutoff = time.time() - max(7 * 86400,
-                               config.TECHNICAL_SIGNAL_COOLDOWN_MINUTES * 60,
-                               config.CBOE_FAIL_COOLDOWN_MINUTES * 60)
-    state["signals"] = {k: v for k, v in state["signals"].items() if v >= cutoff}
+def prune_alert_cooldowns(state: dict) -> None:
+    """Drop cooldown timestamps older than any cooldown could care about."""
+    cutoff = time.time() - max(7 * 86400, config.CBOE_FAIL_COOLDOWN_MINUTES * 60)
+    state["alert_cooldowns"] = {k: v for k, v in state["alert_cooldowns"].items()
+                                if v >= cutoff}
 
 
 def should_fire(state: dict, key: str, cooldown_minutes: float) -> bool:
@@ -142,11 +147,31 @@ def should_fire(state: dict, key: str, cooldown_minutes: float) -> bool:
     actually sending — a True return consumes the slot.
     """
     now = time.time()
-    last = state["signals"].get(key)
+    last = state["alert_cooldowns"].get(key)
     if last is not None and now - last < cooldown_minutes * 60:
         return False
-    state["signals"][key] = now
+    state["alert_cooldowns"][key] = now
     return True
+
+
+def signal_transition(state: dict, key: str, active: bool) -> str | None:
+    """Record whether `key` is currently in action territory and report the
+    edge: 'on' (just became true), 'off' (just stopped being true), or None
+    while it holds steady either way. Call once per poll for every signal —
+    skipping a poll (e.g. missing data) leaves the last known state intact
+    rather than faking an 'off'.
+    """
+    # bool() is load-bearing: the conditions are built from pandas/numpy
+    # comparisons and come back as numpy.bool, which json.dumps refuses —
+    # storing one raw would blow up save_state and take the loop down with it.
+    active = bool(active)
+    was = state["signal_active"].get(key, False)
+    state["signal_active"][key] = active
+    if active and not was:
+        return "on"
+    if was and not active:
+        return "off"
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -469,9 +494,11 @@ def notify(title: str, message: str, tags: str) -> None:
 # ---------------------------------------------------------------------------
 def evaluate_technical(sym: str, quote: dict, closes: pd.Series | None,
                        spy_pct: float, state: dict) -> None:
-    """CSP / buy-or-ATM-put / covered-call signals. Each one re-alerts while its
-    condition holds, rate-limited per ticker+signal by
-    TECHNICAL_SIGNAL_COOLDOWN_MINUTES (0 = every poll)."""
+    """CSP / buy-or-ATM-put / covered-call signals, EDGE-TRIGGERED: one push
+    when a setup enters action territory, one when it leaves, and nothing in
+    between while it holds. The three signals are tracked independently, so an
+    already-active CSP that strengthens into a buy/ATM-put keeps its own state
+    and is not re-announced."""
     if closes is None or len(closes) < 2:
         return
     live, prev_close = quote["price"], quote["prev_close"]
@@ -497,33 +524,59 @@ def evaluate_technical(sym: str, quote: dict, closes: pd.Series | None,
           and rsi >= config.CC_RSI_MIN)
 
     day_ctx = f"{sym} {stock_pct:+.2f}%, SPY {spy_pct:+.2f}%"
-    cooldown = config.TECHNICAL_SIGNAL_COOLDOWN_MINUTES
 
-    if buy_or_put and should_fire(state, f"{sym}:BUY_OR_PUT", cooldown):
-        state["signals"][f"{sym}:CSP"] = time.time()  # implied; don't also fire CSP
+    # Record all three edges first, so every signal's state stays current even
+    # when another one is the thing being announced this poll.
+    csp_edge = signal_transition(state, f"{sym}:CSP", csp)
+    bop_edge = signal_transition(state, f"{sym}:BUY_OR_PUT", buy_or_put)
+    cc_edge = signal_transition(state, f"{sym}:CC", cc)
+
+    if bop_edge == "on":
         notify(
-            f"Signal: {sym} BUY or ATM PUT",
+            f"Signal ON: {sym} BUY or ATM PUT",
             f"{sym} @ {live:.2f} — CSP conditions met AND within "
             f"{config.SMA200_TOLERANCE:.0%} of SMA200 ({ind['sma200']:.2f}). "
             f"Red day ({day_ctx}), price <= EMA50 ({ind['ema50']:.2f}), RSI {rsi:.1f}.",
             "moneybag",
         )
-    elif csp and should_fire(state, f"{sym}:CSP", cooldown):
+    elif bop_edge == "off":
         notify(
-            f"Signal: {sym} CSP",
+            f"Signal OFF: {sym} BUY or ATM PUT",
+            f"{sym} @ {live:.2f} — buy/ATM-put setup no longer holds "
+            f"({day_ctx}, RSI {rsi:.1f}).",
+            "heavy_minus_sign",
+        )
+
+    if csp_edge == "on":
+        notify(
+            f"Signal ON: {sym} CSP",
             f"{sym} @ {live:.2f} — sell-CSP setup. Red day ({day_ctx}), "
             f"price <= EMA50 ({ind['ema50']:.2f}), RSI {rsi:.1f} in "
             f"[{rsi_lo}, {rsi_hi}].",
             "chart_with_downwards_trend",
         )
-
-    if cc and should_fire(state, f"{sym}:CC", cooldown):
+    elif csp_edge == "off":
         notify(
-            f"Signal: {sym} Covered Call",
+            f"Signal OFF: {sym} CSP",
+            f"{sym} @ {live:.2f} — sell-CSP setup no longer holds "
+            f"({day_ctx}, RSI {rsi:.1f}).",
+            "heavy_minus_sign",
+        )
+
+    if cc_edge == "on":
+        notify(
+            f"Signal ON: {sym} Covered Call",
             f"{sym} @ {live:.2f} — covered-call setup. Green day ({day_ctx}), "
             f"%B {pct_b:.2f} >= {config.CC_PERCENT_B_MIN} "
             f"(band {ind['bb_lower']:.2f}–{ind['bb_upper']:.2f}), RSI {rsi:.1f}.",
             "chart_with_upwards_trend",
+        )
+    elif cc_edge == "off":
+        notify(
+            f"Signal OFF: {sym} Covered Call",
+            f"{sym} @ {live:.2f} — covered-call setup no longer holds "
+            f"({day_ctx}, RSI {rsi:.1f}).",
+            "heavy_minus_sign",
         )
 
 
@@ -541,7 +594,7 @@ def evaluate_value_zone(sym: str, quote: dict, closes: pd.Series | None,
 
     price_in = lo <= live <= hi
     strike_in = not math.isnan(strike) and lo <= strike <= hi
-    in_zone = price_in or strike_in
+    in_zone = bool(price_in or strike_in)   # bool(): keep numpy out of the state file
 
     was_in = state["value_zone_in_range"].get(sym, False)
     state["value_zone_in_range"][sym] = in_zone
@@ -578,7 +631,7 @@ def refresh_daily_cache(daily_cache: dict, credits: CreditTracker) -> None:
 
 def run_poll_cycle(state: dict, daily_cache: dict, credits: CreditTracker) -> str:
     """One full evaluation pass. Returns 'ok', 'closed', or 'skipped'."""
-    prune_signal_history(state)
+    prune_alert_cooldowns(state)
     refresh_daily_cache(daily_cache, credits)
 
     symbols = list(dict.fromkeys(config.WATCHLIST + [config.MARKET_PROXY]))
@@ -648,8 +701,10 @@ def main() -> None:
         finally:
             try:
                 save_state(state)
-            except OSError as exc:
-                log.error("Could not save state: %s", exc)
+            except Exception:
+                # Deliberately broad: a bad value in the state dict must never
+                # be able to kill the polling loop from inside this `finally`.
+                log.exception("Could not save state; continuing")
             # Drop idle keep-alive sockets before the long sleep; servers close
             # them anyway, and reusing a dead one is what triggers WinError 10054.
             session.close()
