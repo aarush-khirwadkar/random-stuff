@@ -15,7 +15,7 @@ The Twelve Data API key and the ntfy topic are read from the environment
 # ---------------------------------------------------------------------------
 WATCHLIST = [
     "AMZN", "MSFT", "GOOG", "AAPL", "NVDA", "TSLA",
-    "SPCX", "HOOD", "PLTR", "SOXL", "CRWV", "SMCI", "INTC", "META"
+    "SPCX", "HOOD", "PLTR", "SOXL", "CRWV", "SMCI", "INTC", "META", "MRVL"
 ]
 
 # Market proxy used for the red-day / green-day comparison

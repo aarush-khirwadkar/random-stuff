@@ -1,0 +1,7 @@
+# CIFAR-10 download (torchvision re-downloads it automatically on first run)
+data/
+
+# trained encoder checkpoints (~45 MB each); metrics.csv, logs and figures stay tracked
+runs/**/*.pt
+
+__pycache__/
