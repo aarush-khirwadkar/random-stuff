@@ -1,0 +1,4 @@
+alignment   = 0.1384   (lower = positives closer)
+uniformity  = -1.0956   (lower = more spread)
+output std  = 0.0232   (~0.0442 healthy, ~0 => complete collapse)
+eff. rank   = 39.69 / 512   (small => dimensional collapse)
