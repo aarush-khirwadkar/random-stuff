@@ -12,7 +12,7 @@ Data flow per poll cycle (every POLL_INTERVAL_MINUTES during market hours):
   2. A batched /quote call (chunked to respect the 8-credit/min limit) gives
      each symbol's live price and previous close.
   3. Conditions are evaluated with the LIVE price: red/green day vs. prior
-     close (stock and SPY), price vs. EMA50/SMA200/Bollinger levels, and RSI
+     close, price vs. EMA50/SMA200/Bollinger levels, and RSI
      recomputed with the live price standing in for today's unfinished bar.
   4. For value-zone tickers, the real ~30-delta/~30-day put strike comes from
      Cboe's free delayed options chain (cached hourly per symbol), with a
@@ -493,7 +493,7 @@ def notify(title: str, message: str, tags: str) -> None:
 # Signal evaluation (NOTIFICATION ONLY — no trading of any kind)
 # ---------------------------------------------------------------------------
 def evaluate_technical(sym: str, quote: dict, closes: pd.Series | None,
-                       spy_pct: float, state: dict) -> None:
+                       state: dict) -> None:
     """CSP / buy-or-ATM-put / covered-call signals, EDGE-TRIGGERED: one push
     when a setup enters action territory, one when it leaves, and nothing in
     between while it holds. The three signals are tracked independently, so an
@@ -506,8 +506,8 @@ def evaluate_technical(sym: str, quote: dict, closes: pd.Series | None,
     ind = compute_indicators(closes)
     rsi = live_rsi(closes, live)
 
-    red = stock_pct < 0 and spy_pct < 0
-    green = stock_pct > 0 and spy_pct > 0
+    red = stock_pct < 0
+    green = stock_pct > 0
 
     rsi_lo, rsi_hi = config.CSP_RSI_RANGE
     csp = (red and not math.isnan(ind["ema50"]) and live <= ind["ema50"]
@@ -523,7 +523,7 @@ def evaluate_technical(sym: str, quote: dict, closes: pd.Series | None,
     cc = (green and not math.isnan(pct_b) and pct_b >= config.CC_PERCENT_B_MIN
           and rsi >= config.CC_RSI_MIN)
 
-    day_ctx = f"{sym} {stock_pct:+.2f}%, SPY {spy_pct:+.2f}%"
+    day_ctx = f"{sym} {stock_pct:+.2f}%"
 
     # Record all three edges first, so every signal's state stays current even
     # when another one is the thing being announced this poll.
@@ -634,18 +634,15 @@ def run_poll_cycle(state: dict, daily_cache: dict, credits: CreditTracker) -> st
     prune_alert_cooldowns(state)
     refresh_daily_cache(daily_cache, credits)
 
-    symbols = list(dict.fromkeys(config.WATCHLIST + [config.MARKET_PROXY]))
+    symbols = list(dict.fromkeys(config.WATCHLIST))
     quotes = fetch_quotes(symbols, credits)
 
-    spy = quotes.get(config.MARKET_PROXY)
-    if spy is None:
-        log.error("No quote for %s — cannot determine red/green day; skipping cycle",
-                  config.MARKET_PROXY)
+    if not quotes:
+        log.error("No quotes returned — skipping cycle")
         return "skipped"
-    if not spy["is_market_open"]:
+    if not any(q["is_market_open"] for q in quotes.values()):
         log.info("Twelve Data reports market closed (holiday or off-hours)")
         return "closed"
-    spy_pct = (spy["price"] - spy["prev_close"]) / spy["prev_close"] * 100
 
     for sym in config.WATCHLIST:
         quote = quotes.get(sym)
@@ -654,7 +651,7 @@ def run_poll_cycle(state: dict, daily_cache: dict, credits: CreditTracker) -> st
         cached = daily_cache.get(sym)
         closes = cached["closes"] if cached else None
         try:
-            evaluate_technical(sym, quote, closes, spy_pct, state)
+            evaluate_technical(sym, quote, closes, state)
             evaluate_value_zone(sym, quote, closes, state)
         except Exception:
             log.exception("Evaluation failed for %s", sym)
@@ -675,8 +672,8 @@ def main() -> None:
         sys.exit("TWELVEDATA_API_KEY is not set. Put it in a .env file next to "
                  "this script (TWELVEDATA_API_KEY=...) or export it as an "
                  "environment variable.")
-    log.info("Screener starting — %d tickers + %s, polling every %d min, "
-             "ntfy topic %r", len(config.WATCHLIST), config.MARKET_PROXY,
+    log.info("Screener starting — %d tickers, polling every %d min, "
+             "ntfy topic %r", len(config.WATCHLIST),
              config.POLL_INTERVAL_MINUTES, NTFY_TOPIC)
 
     state = load_state()

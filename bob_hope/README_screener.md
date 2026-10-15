@@ -49,7 +49,7 @@ re-checks hourly instead of polling at full rate.
 
 ## Editing the watchlist / zones / thresholds
 
-Everything lives in `config.py` — watchlist tickers, SPY proxy, value-zone
+Everything lives in `config.py` — watchlist tickers, value-zone
 price ranges, RSI bands, %B cutoff, SMA200 tolerance, polling interval, and
 credit caps. No logic in that file; edit and restart.
 

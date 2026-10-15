@@ -1,0 +1,9 @@
+run,target,pattern,ratio,no_center,acc_cls,acc_mean
+mae_r0.15,pixel,random,0.15,False,50.29,57.74
+mae_r0.50,pixel,random,0.50,False,60.98,63.44
+mae_r0.90,pixel,random,0.90,False,63.5,66.49
+mae_block,pixel,block,0.75,False,65.99,68.52
+mae_grid,pixel,grid,0.75,False,64.76,65.19
+feat_nocenter,feature,random,0.75,True,58.04,58.65
+mae75,pixel,random,0.75,False,60.68,68.19
+feat75,feature,random,0.75,False,55.72,57.23

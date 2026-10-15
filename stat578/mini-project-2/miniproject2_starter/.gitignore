@@ -1,0 +1,29 @@
+# Dataset (CIFAR-10 auto-downloads; assignment says not to submit data/)
+data/
+
+# Model checkpoints (assignment says not to submit them)
+*.pt
+*.pth
+*.ckpt
+
+# Smoke-test / scratch runs
+runs_smoke/
+runs_*/
+
+# Logs (metrics.csv, recon.png and part2_probe_results.csv are kept)
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Notebooks / editors / OS
+.ipynb_checkpoints/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -18,9 +18,6 @@ WATCHLIST = [
     "SPCX", "HOOD", "PLTR", "SOXL", "CRWV", "SMCI", "INTC", "META", "MRVL", "AAL"
 ]
 
-# Market proxy used for the red-day / green-day comparison
-MARKET_PROXY = "SPY"
-
 # ---------------------------------------------------------------------------
 # Value zones — alert once when the live price (or the approximate ~30-delta,
 # ~30-day CSP strike) ENTERS one of these [low, high] price ranges.
