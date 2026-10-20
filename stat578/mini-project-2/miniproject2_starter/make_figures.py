@@ -4,6 +4,7 @@
 
 fig1_ratio.png     probe accuracy and final pretraining loss vs masking ratio
 fig2_patterns.png  random / block / grid at ratio 0.75: probe accuracy + recon grids
+                   (side by side, same 4 test images and seeded masks for every pattern)
 fig3_collapse.png  loss, cls_erank, cls_std, cls_patch_sim, patch_locality vs epoch,
                    centered (feat75) vs uncentered (feat_nocenter)
 table_probe.md/.csv  linear-probe accuracy over all eight runs
@@ -17,7 +18,6 @@ import os
 
 import matplotlib
 matplotlib.use("Agg")
-import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 
 RUNS = "runs"
@@ -40,6 +40,41 @@ def read_csv(path):
 
 def metrics(run):
     return read_csv(os.path.join(RUNS, run, "metrics.csv"))
+
+
+def recon_grid(run, pattern, imgs, ratio=0.75, seed=0):
+    """original / masked / reconstruction rows for a pixel-target run, as one image.
+
+    Same logic as visualize.py, but on a fixed set of images and a seeded mask so
+    every pattern is shown on the same inputs.
+    """
+    import torch
+    from torchvision.utils import make_grid
+    import data
+    from methods import MaskedModel
+    from vit import patchify, unpatchify
+
+    ck = torch.load(os.path.join(RUNS, run, "encoder.pt"), map_location="cpu")
+    a = ck.get("args", {})
+    m = MaskedModel(target="pixel", dim=a.get("dim", 192), depth=a.get("depth", 6),
+                    dec_dim=a.get("dec_dim", 96), dec_depth=a.get("dec_depth", 2))
+    m.encoder.load_state_dict(ck["encoder"])
+    m.decoder.load_state_dict(ck["decoder"])
+    m.eval()
+    norm_pix = not a.get("no_norm_pix", False)
+    torch.manual_seed(seed)
+    with torch.no_grad():
+        _, pred, mask = m(imgs, pattern=pattern, ratio=ratio, norm_pix=norm_pix)
+        y = patchify(imgs, m.patch)
+        if norm_pix:                                        # undo the per-patch norm
+            mu = y.mean(dim=-1, keepdim=True)
+            sd = (y.var(dim=-1, keepdim=True) + 1e-6).sqrt()
+            pred = pred * sd + mu
+        keep = (1 - mask).unsqueeze(-1)
+        rows = [imgs, unpatchify(y * keep, m.patch, m.grid),
+                unpatchify(y * keep + pred * (1 - keep), m.patch, m.grid)]
+    tiles = data.denormalize(torch.cat(rows))
+    return make_grid(tiles, nrow=imgs.shape[0], padding=2, pad_value=1.0).permute(1, 2, 0).numpy()
 
 
 def main():
@@ -65,9 +100,14 @@ def main():
     plt.close(fig)
 
     # ---- Fig 2: pattern comparison -----------------------------------------
+    import torch
+    import data
     pats = [("mae75", "random"), ("mae_block", "block"), ("mae_grid", "grid")]
-    fig = plt.figure(figsize=(7.5, 8.6))
-    gs = fig.add_gridspec(4, 1, height_ratios=[1.5, 1, 1, 1], hspace=0.4)
+    _, test_ds = data.get_eval_datasets("./data")
+    idx = torch.randperm(len(test_ds), generator=torch.Generator().manual_seed(0))[:4]
+    imgs = torch.stack([test_ds[int(i)][0] for i in idx])   # same 4 test images for every pattern
+    fig = plt.figure(figsize=(11.5, 2.9))
+    gs = fig.add_gridspec(1, 5, width_ratios=[1.25, 0.22, 1, 1, 1], wspace=0.06)   # col 1 = gap for row labels
     axb = fig.add_subplot(gs[0, 0])
     w = 0.35
     xs = range(len(pats))
@@ -76,19 +116,26 @@ def main():
     axb.bar([x + w / 2 for x in xs], [acc[n]["acc_cls"] for n, _ in pats], w,
             color=C_CLS, label="cls pool")
     for x, (n, _) in zip(xs, pats):
-        axb.text(x - w / 2, acc[n]["acc_mean"] + 0.4, f"{acc[n]['acc_mean']:.1f}", ha="center")
-        axb.text(x + w / 2, acc[n]["acc_cls"] + 0.4, f"{acc[n]['acc_cls']:.1f}", ha="center")
+        axb.text(x - w / 2, acc[n]["acc_mean"] + 0.4, f"{acc[n]['acc_mean']:.1f}", ha="center", fontsize=7.5)
+        axb.text(x + w / 2, acc[n]["acc_cls"] + 0.4, f"{acc[n]['acc_cls']:.1f}", ha="center", fontsize=7.5)
     lo = min(acc[n]["acc_cls"] for n, _ in pats)
     axb.set(ylim=(lo - 6, max(acc[n]["acc_mean"] for n, _ in pats) + 4),
             xticks=list(xs), xticklabels=[p for _, p in pats],
             ylabel="probe test accuracy (%)",
-            title="Masking pattern at ratio 0.75 (pixel target, 100 epochs)")
+            title="Probe accuracy, ratio 0.75")
     axb.legend(frameon=False, loc="upper right", ncol=2)
     for i, (n, p) in enumerate(pats):
-        a = fig.add_subplot(gs[i + 1, 0])
-        a.imshow(mpimg.imread(os.path.join(RUNS, n, "recon.png")))
-        a.set_title(f"{p} masking: original / masked / reconstruction", fontsize=8)
-        a.axis("off")
+        a = fig.add_subplot(gs[0, i + 2])
+        g = recon_grid(n, p, imgs)
+        a.imshow(g)
+        a.set_title(f"{p} masking", fontsize=9)
+        a.set_xticks([]); a.grid(False)
+        for s in a.spines.values():
+            s.set_visible(False)
+        h = g.shape[0] / 3
+        a.set_yticks([h * (k + 0.5) for k in range(3)])
+        a.set_yticklabels(["original", "masked", "recon."] if i == 0 else [], fontsize=8)
+        a.tick_params(left=False)
     fig.savefig(os.path.join(OUT, "fig2_patterns.png"), dpi=200, bbox_inches="tight")
     plt.close(fig)
 
