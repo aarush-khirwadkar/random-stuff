@@ -56,7 +56,8 @@ BB_STD = 2.0
 # Signal thresholds
 # ---------------------------------------------------------------------------
 CSP_RSI_RANGE = (30, 50)     # RSI must be inside [lo, hi] for the CSP signal
-SMA200_TOLERANCE = 0.02      # "within 2% of the 200-day SMA" for buy/ATM-put
+CSP_EMA50_TOLERANCE = 0.02   # CSP allows price up to this far ABOVE EMA50 (any amount below)
+SMA200_TOLERANCE = 0.02     # "within 2% of the 200-day SMA" for buy/ATM-put
 CC_PERCENT_B_MIN = 0.80      # %B threshold for the covered-call signal
 CC_RSI_MIN = 60              # RSI threshold for the covered-call signal
 

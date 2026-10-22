@@ -506,12 +506,16 @@ def evaluate_technical(sym: str, quote: dict, closes: pd.Series | None,
     ind = compute_indicators(closes)
     rsi = live_rsi(closes, live)
 
-    red = stock_pct < 0
     green = stock_pct > 0
 
+    # closes holds closed bars only, so [-1] is the prior session and [-2] is
+    # two sessions ago (today being session 0).
+    close_2ago = float(closes.iloc[-2])
+    red_downtrend = live < prev_close and live < close_2ago
+
     rsi_lo, rsi_hi = config.CSP_RSI_RANGE
-    csp = (red and not math.isnan(ind["ema50"]) and live <= ind["ema50"]
-           and rsi_lo <= rsi <= rsi_hi)
+    ema_ceiling = ind["ema50"] * (1 + config.CSP_EMA50_TOLERANCE)   # NaN if no EMA50
+    csp = (red_downtrend and live <= ema_ceiling and rsi_lo <= rsi <= rsi_hi)
 
     near_sma200 = (not math.isnan(ind["sma200"])
                    and abs(live - ind["sma200"]) / ind["sma200"] <= config.SMA200_TOLERANCE)
@@ -536,7 +540,9 @@ def evaluate_technical(sym: str, quote: dict, closes: pd.Series | None,
             f"Signal ON: {sym} BUY or ATM PUT",
             f"{sym} @ {live:.2f} — CSP conditions met AND within "
             f"{config.SMA200_TOLERANCE:.0%} of SMA200 ({ind['sma200']:.2f}). "
-            f"Red day ({day_ctx}), price <= EMA50 ({ind['ema50']:.2f}), RSI {rsi:.1f}.",
+            f"Red day + downtrend ({day_ctx}, prior {prev_close:.2f}, "
+            f"2-ago {close_2ago:.2f}), within {config.CSP_EMA50_TOLERANCE:.0%} "
+            f"above/below EMA50 ({ind['ema50']:.2f}), RSI {rsi:.1f}.",
             "moneybag",
         )
     elif bop_edge == "off":
@@ -550,8 +556,10 @@ def evaluate_technical(sym: str, quote: dict, closes: pd.Series | None,
     if csp_edge == "on":
         notify(
             f"Signal ON: {sym} CSP",
-            f"{sym} @ {live:.2f} — sell-CSP setup. Red day ({day_ctx}), "
-            f"price <= EMA50 ({ind['ema50']:.2f}), RSI {rsi:.1f} in "
+            f"{sym} @ {live:.2f} — sell-CSP setup. Red day + downtrend "
+            f"({day_ctx}, prior {prev_close:.2f}, 2-ago {close_2ago:.2f}), "
+            f"price at/below EMA50 ({ind['ema50']:.2f}) or within "
+            f"{config.CSP_EMA50_TOLERANCE:.0%} above it, RSI {rsi:.1f} in "
             f"[{rsi_lo}, {rsi_hi}].",
             "chart_with_downwards_trend",
         )
