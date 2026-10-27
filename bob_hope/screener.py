@@ -637,6 +637,20 @@ def refresh_daily_cache(daily_cache: dict, credits: CreditTracker) -> None:
             log.warning("No daily history for %s; technical signals skipped", sym)
 
 
+def format_status(state: dict) -> str:
+    """One line per signal listing the watchlist tickers where it is currently
+    on, plus the tickers currently inside their value zone."""
+    def active(group: dict, suffix: str = "") -> str:
+        syms = [s for s in config.WATCHLIST if group.get(s + suffix)]
+        return ", ".join(syms) or "-"
+
+    lines = [f"{label}: {active(state['signal_active'], ':' + key)}"
+             for key, label in (("CSP", "CSP"), ("BUY_OR_PUT", "BUY or ATM PUT"),
+                                ("CC", "Covered Call"))]
+    lines.append(f"In value zone: {active(state['value_zone_in_range'])}")
+    return "\n".join(lines)
+
+
 def run_poll_cycle(state: dict, daily_cache: dict, credits: CreditTracker) -> str:
     """One full evaluation pass. Returns 'ok', 'closed', or 'skipped'."""
     prune_alert_cooldowns(state)
@@ -664,6 +678,9 @@ def run_poll_cycle(state: dict, daily_cache: dict, credits: CreditTracker) -> st
         except Exception:
             log.exception("Evaluation failed for %s", sym)
 
+    if config.STATUS_NOTIFY:
+        notify("Screener status", format_status(state), "bar_chart")
+
     log.info("Cycle done — credits used today: %d/%d",
              credits.daily_used(), config.CREDITS_PER_DAY)
     return "ok"
@@ -672,7 +689,23 @@ def run_poll_cycle(state: dict, daily_cache: dict, credits: CreditTracker) -> st
 # ---------------------------------------------------------------------------
 # Main loop
 # ---------------------------------------------------------------------------
+def print_status() -> None:
+    """Show which signals are currently on, from the state file the polling
+    loop maintains. Makes no API calls and works while the screener is running."""
+    path = SCRIPT_DIR / config.STATE_FILE
+    if not path.exists():
+        print(f"No state file at {path} yet — the screener hasn't completed a poll.")
+        return
+    updated = datetime.fromtimestamp(path.stat().st_mtime, tz=ET)
+    age_min = (now_et() - updated).total_seconds() / 60
+    print(f"State last written {updated:%Y-%m-%d %H:%M} ET ({age_min:.0f} min ago)\n")
+    print(format_status(load_state()))
+
+
 def main() -> None:
+    if "--status" in sys.argv:
+        print_status()
+        return
     if "--test-notify" in sys.argv:
         notify("Screener test", "Test notification — ntfy pipeline works.", "white_check_mark")
         return

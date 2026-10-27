@@ -65,6 +65,10 @@ CC_RSI_MIN = 60              # RSI threshold for the covered-call signal
 # one when it stops being true, nothing while it simply stays true. There is no
 # repeat/cooldown knob for them by design.
 
+# Send a summary push (which signals are currently on) after every completed
+# poll cycle, in addition to the edge-triggered ON/OFF alerts.
+STATUS_NOTIFY = True
+
 # Cooldown for the "Cboe fetch failed" warning. Kept long on purpose: a data
 # source outage is worth knowing about once, not every poll.
 CBOE_FAIL_COOLDOWN_MINUTES = 1440
