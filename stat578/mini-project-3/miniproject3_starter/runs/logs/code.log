@@ -10,3 +10,16 @@ epoch  25  loss=1.9026  erank=16.6  std=0.046  locality=0.116  drift=0.0036  agr
 epoch  30  loss=1.8688  erank=16.6  std=0.041  locality=0.115  drift=0.0031  agree=0.981  ppl=247.4
 epoch  35  loss=1.8496  erank=20.2  std=0.046  locality=0.117  drift=0.0029  agree=0.982  ppl=247.2
 epoch  40  loss=1.8426  erank=20.4  std=0.047  locality=0.119  drift=0.0028  agree=0.983  ppl=247.2
+epoch  45  loss=1.8371  erank=22.3  std=0.048  locality=0.119  drift=0.0026  agree=0.984  ppl=246.9
+epoch  50  loss=1.8377  erank=22.8  std=0.048  locality=0.119  drift=0.0025  agree=0.984  ppl=246.7
+epoch  55  loss=1.8439  erank=24.4  std=0.049  locality=0.119  drift=0.0023  agree=0.987  ppl=247.2
+epoch  60  loss=1.8330  erank=26.0  std=0.049  locality=0.119  drift=0.0021  agree=0.989  ppl=247.3
+epoch  65  loss=1.8371  erank=27.4  std=0.051  locality=0.119  drift=0.0018  agree=0.990  ppl=247.7
+epoch  70  loss=1.8080  erank=28.4  std=0.050  locality=0.119  drift=0.0015  agree=0.992  ppl=247.8
+epoch  75  loss=1.7876  erank=29.8  std=0.050  locality=0.118  drift=0.0012  agree=0.994  ppl=247.5
+epoch  80  loss=1.7706  erank=30.5  std=0.049  locality=0.119  drift=0.0008  agree=0.996  ppl=247.8
+epoch  85  loss=1.7595  erank=31.1  std=0.050  locality=0.118  drift=0.0005  agree=0.998  ppl=247.9
+epoch  90  loss=1.7389  erank=30.7  std=0.049  locality=0.117  drift=0.0003  agree=0.999  ppl=247.9
+epoch  95  loss=1.7484  erank=30.2  std=0.049  locality=0.117  drift=0.0001  agree=1.000  ppl=248.2
+epoch  99  loss=1.7790  erank=30.2  std=0.049  locality=0.117  drift=0.0000  agree=1.000  ppl=248.2
+saved encoder to runs/code\encoder.pt

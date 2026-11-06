@@ -21,3 +21,5 @@ epoch  80  loss=0.2291  erank=24.7  std=0.057  locality=0.145  drift=0.0009  agr
 epoch  85  loss=0.2179  erank=23.6  std=0.056  locality=0.143  drift=0.0007  agree=0.998  ppl=nan
 epoch  90  loss=0.2088  erank=22.8  std=0.056  locality=0.143  drift=0.0005  agree=0.999  ppl=nan
 epoch  95  loss=0.2021  erank=21.8  std=0.056  locality=0.142  drift=0.0003  agree=0.999  ppl=nan
+epoch  99  loss=0.1996  erank=21.4  std=0.056  locality=0.143  drift=0.0001  agree=1.000  ppl=nan
+saved encoder to runs/feat_inside\encoder.pt
