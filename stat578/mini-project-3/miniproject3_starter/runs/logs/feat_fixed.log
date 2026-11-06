@@ -1,0 +1,25 @@
+device: cuda | target: feature | teacher: fixed sees full | predictor: outside, depth 2 | mask: multiblock @ 0.6
+C:\Users\aarus\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\torchvision\datasets\cifar.py:83: VisibleDeprecationWarning: dtype(): align should be passed as Python or NumPy boolean but got `align=0`. Did you mean to pass a tuple to create a subarray type? (Deprecated NumPy 2.4)
+  entry = pickle.load(f, encoding="latin1")
+epoch   0  loss=1.0342  erank=7.6  std=0.030  locality=0.174  drift=nan  agree=0.080  ppl=nan
+epoch   5  loss=0.3857  erank=28.0  std=0.061  locality=0.151  drift=0.0000  agree=0.089  ppl=nan
+epoch  10  loss=0.3119  erank=34.8  std=0.059  locality=0.138  drift=0.0000  agree=0.096  ppl=nan
+epoch  15  loss=0.2778  erank=36.0  std=0.057  locality=0.132  drift=0.0000  agree=0.099  ppl=nan
+epoch  20  loss=0.2605  erank=36.7  std=0.060  locality=0.129  drift=0.0000  agree=0.105  ppl=nan
+epoch  25  loss=0.2487  erank=38.3  std=0.060  locality=0.127  drift=0.0000  agree=0.108  ppl=nan
+epoch  30  loss=0.2407  erank=38.3  std=0.060  locality=0.131  drift=0.0000  agree=0.109  ppl=nan
+epoch  35  loss=0.2348  erank=39.1  std=0.059  locality=0.127  drift=0.0000  agree=0.106  ppl=nan
+epoch  40  loss=0.2300  erank=38.3  std=0.058  locality=0.126  drift=0.0000  agree=0.109  ppl=nan
+epoch  45  loss=0.2250  erank=39.3  std=0.060  locality=0.128  drift=0.0000  agree=0.106  ppl=nan
+epoch  50  loss=0.2204  erank=39.6  std=0.060  locality=0.124  drift=0.0000  agree=0.105  ppl=nan
+epoch  55  loss=0.2166  erank=40.3  std=0.059  locality=0.126  drift=0.0000  agree=0.106  ppl=nan
+epoch  60  loss=0.2129  erank=40.3  std=0.059  locality=0.124  drift=0.0000  agree=0.105  ppl=nan
+epoch  65  loss=0.2093  erank=40.5  std=0.059  locality=0.126  drift=0.0000  agree=0.105  ppl=nan
+epoch  70  loss=0.2066  erank=40.5  std=0.059  locality=0.123  drift=0.0000  agree=0.106  ppl=nan
+epoch  75  loss=0.2038  erank=40.0  std=0.057  locality=0.124  drift=0.0000  agree=0.105  ppl=nan
+epoch  80  loss=0.2013  erank=40.6  std=0.058  locality=0.124  drift=0.0000  agree=0.106  ppl=nan
+epoch  85  loss=0.1986  erank=40.4  std=0.057  locality=0.124  drift=0.0000  agree=0.105  ppl=nan
+epoch  90  loss=0.1978  erank=40.7  std=0.057  locality=0.124  drift=0.0000  agree=0.105  ppl=nan
+epoch  95  loss=0.1970  erank=40.5  std=0.057  locality=0.124  drift=0.0000  agree=0.105  ppl=nan
+epoch  99  loss=0.1970  erank=40.5  std=0.057  locality=0.124  drift=0.0000  agree=0.105  ppl=nan
+saved encoder to runs/feat_fixed\encoder.pt

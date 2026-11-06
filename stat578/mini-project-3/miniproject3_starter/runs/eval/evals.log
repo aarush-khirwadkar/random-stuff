@@ -1,0 +1,19 @@
+11:14 probes pix
+11:15 probes feat
+11:17 probes code
+11:19 probes feat_frozen
+11:20 probes feat_fixed
+11:22 probes feat_targets
+11:24 probes feat_inside
+11:25 probes feat_random
+11:27 finetune code
+run            probe100  1%s0   1%s1   1%avg  finetune
+pix            69.89  57.18  59.22  58.20    -  
+feat           68.20  57.77  58.06  57.92    -  
+code           70.06  59.23  59.20  59.22  83.11
+feat_frozen    65.18  53.13  53.86  53.50    -  
+feat_fixed     72.48  61.29  61.16  61.22    -  
+feat_targets   50.68  42.00  41.88  41.94    -  
+feat_inside    67.67  58.47  58.98  58.72    -  
+feat_random    50.79  38.57  39.65  39.11    -  
+11:37 evals done

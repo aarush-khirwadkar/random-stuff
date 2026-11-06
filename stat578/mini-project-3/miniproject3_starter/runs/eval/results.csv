@@ -1,0 +1,9 @@
+run,probe_100,probe_1pct_seed0,probe_1pct_seed1,probe_1pct_avg,finetune
+pix,69.89,57.18,59.22,58.2,
+feat,68.2,57.77,58.06,57.92,
+code,70.06,59.23,59.2,59.22,83.11
+feat_frozen,65.18,53.13,53.86,53.5,
+feat_fixed,72.48,61.29,61.16,61.22,
+feat_targets,50.68,42.0,41.88,41.94,
+feat_inside,67.67,58.47,58.98,58.72,
+feat_random,50.79,38.57,39.65,39.11,
