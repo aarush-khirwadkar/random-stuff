@@ -1,0 +1,2 @@
+epoch,loss,cls_erank,cls_std,cls_patch_sim,patch_locality,target_drift,st_agreement,code_perplexity
+0,0.7319818573120312,4.827205657958984,0.02492646500468254,0.8203582763671875,0.17714855074882507,nan,0.8677915334701538,nan
