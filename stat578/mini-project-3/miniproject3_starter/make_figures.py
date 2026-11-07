@@ -1,6 +1,6 @@
 """Make every Part 2 report figure from runs/*/metrics.csv and runs/eval/results.csv.
 
-    python make_figures.py              # writes ../report/figures/*.pdf
+    python make_figures.py              # writes ../report/figures/*.png
 
 Fine-tuning numbers that do not exist yet (Part 1: pix, feat, scratch) are drawn as
 "n/a" and appear automatically once runs/eval/<run>_finetune.log is present.
@@ -92,7 +92,7 @@ def fig_legend(fig, ax, ncol):
 
 
 def save(fig, name):
-    fig.savefig(os.path.join(OUT, name))
+    fig.savefig(os.path.join(OUT, name), dpi=300)
     plt.close(fig)
     print("wrote", os.path.join(OUT, name))
 
@@ -114,7 +114,7 @@ b.set_xlabel("epoch")
 b.set_ylabel("perplexity")
 b.set_title("(b) code-usage perplexity")
 fig_legend(fig, a, 3)
-save(fig, "fig_targets.pdf")
+save(fig, "fig_targets.png")
 
 # ---- Figure 2: teacher panel -----------------------------------------------------------
 runs, labs = ["feat", "feat_fixed", "feat_frozen"], ["EMA", "fixed", "frozen"]
@@ -131,7 +131,7 @@ c.set_ylim(0, 1.05)
 c.set_title("(c) student-teacher agreement", x=0.45)
 c.set_ylabel("agreement (cosine)")
 fig_legend(fig, b, 3)
-save(fig, "fig_teacher.pdf")
+save(fig, "fig_teacher.png")
 
 # ---- Figure 3: what the teacher sees -----------------------------------------------------
 runs, labs = ["feat", "feat_targets"], ["teacher sees full image", "teacher sees targets only"]
@@ -144,7 +144,7 @@ b.set_title("(b) patch locality (lower = more local)")
 curves(c, runs, labs, "cls_erank", "effective rank (CLS)")
 c.set_title("(c) effective rank")
 fig_legend(fig, b, 2)
-save(fig, "fig_context.pdf")
+save(fig, "fig_context.png")
 
 # ---- Figure 4: where the prediction is made -------------------------------------------------
 runs, labs = ["feat", "feat_inside"], ["outside predictor", "mask tokens inside encoder"]
@@ -158,7 +158,7 @@ b.set_title("(b) CLS-patch similarity")
 curves(c, runs, labs, "patch_locality", "patch locality")
 c.set_title("(c) patch locality")
 fig_legend(fig, b, 2)
-save(fig, "fig_predictor.pdf")
+save(fig, "fig_predictor.png")
 
 # ---- Figure 5: masks ---------------------------------------------------------------------
 torch.manual_seed(0)
@@ -184,4 +184,4 @@ handles = [matplotlib.patches.Patch(color=cmap(i), label=l)
 fig.legend(handles=handles, loc="lower center", ncol=3, frameon=False, fontsize=7,
            bbox_to_anchor=(0.5, -0.04))
 fig.tight_layout(rect=(0, 0.05, 1, 1))
-save(fig, "fig_masks.pdf")
+save(fig, "fig_masks.png")
